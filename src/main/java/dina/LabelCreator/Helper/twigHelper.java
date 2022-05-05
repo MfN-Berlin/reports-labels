@@ -1,24 +1,31 @@
 package dina.LabelCreator.Helper;
 
+import dina.LabelCreator.LabelCreator;
 import org.jtwig.environment.EnvironmentConfiguration;
 import org.jtwig.environment.EnvironmentConfigurationBuilder;
 import org.jtwig.functions.FunctionRequest;
 import org.jtwig.functions.SimpleJtwigFunction;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 import dina.BarCoder.BarCoder;
 import dina.LabelCreator.Options.Options;
 import net.sf.json.JSONObject;
+import org.jtwig.value.convert.string.StringConverter;
 
 public class twigHelper {
 	
 	public Options op;
+  private final LabelCreator.Format format;
 	
-	public twigHelper(Options options)
+	public twigHelper(Options options, LabelCreator.Format format)
 	{
 		this.op = options;
+    this.format = format;
 	}
 	
 	
@@ -246,20 +253,28 @@ public class twigHelper {
           }
 
       @Override
-      public   Object execute(FunctionRequest request) {
-          String re = new String();
+      public Object execute(FunctionRequest request) {
+          String response = "";
           int width = 600;
           int height = 600;
           int margin = 0;
           String para = null;
-          
-          JSONObject paraJSON = new JSONObject();
+          StringConverter stringConverter = request.getEnvironment().getValueEnvironment().getStringConverter();
+
+          String outputImagePath;
+          try {
+            outputImagePath = LabelCreator.Format.PDF.equals(format) ? Files.createTempDirectory("twig").toString(): op.tmpDir;
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+
+        JSONObject paraJSON = new JSONObject();
            if (request.getNumberOfArguments() == 4 /* Define number of arguments */ ) {
-        	   	para = request.getEnvironment().getValueEnvironment().getStringConverter().convert(request.get(3));
+        	   	para = stringConverter.convert(request.get(3));
         	   	paraJSON = JSONObject.fromObject(para);
            };
 
-	         //check at least the parameters width and height as they are mendatory
+	         //check at least the parameters width and height as they are mandatory
 	   	   	if(!paraJSON.has("width")) 
 	   	   		paraJSON.put("width", width);
 	   	   	if(!paraJSON.has("height")) 
@@ -270,29 +285,36 @@ public class twigHelper {
            
 		   if (request.getNumberOfArguments() >= 3/* Define number of arguments */ ) {           	   
                if (request.get(0) instanceof String && request.get(1) instanceof String && request.get(2) instanceof String) {
-               	
+
                 	// Define the action here
-                   String data = request.getEnvironment().getValueEnvironment().getStringConverter().convert(request.get(0));
-                   String filename = request.getEnvironment().getValueEnvironment().getStringConverter().convert(request.get(1));
-                   String codeFormat = request.getEnvironment().getValueEnvironment().getStringConverter().convert(request.get(2));
+                   String data = stringConverter.convert(request.get(0));
+                   String filename = stringConverter.convert(request.get(1));
+                   String codeFormat = stringConverter.convert(request.get(2));
+                   String qrFilename = "";
                    if(codeFormat.equalsIgnoreCase("QR-Code") || codeFormat.equalsIgnoreCase("QR"))
-                	   re = BarCoder.createCode(new String[] { data, filename}, op.tmpDir, BarCoder.codeFormats.QR_CODE, paraJSON);
+                     qrFilename = BarCoder.createCode(new String[] { data, filename}, outputImagePath, BarCoder.codeFormats.QR_CODE, paraJSON);
                    if(codeFormat.equalsIgnoreCase("Barcode"))
-                	   re = BarCoder.createCode(new String[] { data, filename}, op.tmpDir, BarCoder.codeFormats.CODE_128,  paraJSON);
+                     qrFilename = BarCoder.createCode(new String[] { data, filename}, outputImagePath, BarCoder.codeFormats.CODE_128,  paraJSON);
                    if(codeFormat.equalsIgnoreCase("DataMatrix"))
-                	   re = BarCoder.createCode(new String[] { data, filename}, op.tmpDir, BarCoder.codeFormats.DATA_MATRIX, paraJSON);
+                     qrFilename = BarCoder.createCode(new String[] { data, filename}, outputImagePath, BarCoder.codeFormats.DATA_MATRIX, paraJSON);
                    
-                   if(!re.isEmpty())
-                	   re = op.baseURL +"/" + op.tmpPath + "?f="+ re;
-                   
-                   System.out.println(re);
-                   
-                   if(!Helper.checkURL(re, op.debug) && !op.debug)
-                	   re = "_";
+                   if(qrFilename != null && !qrFilename.isEmpty()) {
+                     switch(format) {
+                       case PDF:
+                         // for PDF we return the URI on disk (file: protocol) instead of http url
+                         response = Paths.get(outputImagePath, qrFilename).toUri().toString();
+                         break;
+                       case HTML:
+                         response = op.baseURL + "/" + op.tmpPath + "?f=" + qrFilename;
+                         if(!Helper.checkURL(response, op.debug) && !op.debug)
+                           response = "_";
+                         break;
+                     }
+                   }
+                   System.out.println(response);
                }
            }
-
-          return (re);
+          return response;
       }
   };
 

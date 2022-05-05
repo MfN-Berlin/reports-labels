@@ -33,7 +33,7 @@ public class CreateHTML {
 		   //labels.baseURL = "http://"+req.host()+req.pathInfo();
 		   //String re = labels.parseTemplate();
 
-           String re = labels.parseTwigTemplate("HTML");
+           String re = labels.parseTwigTemplate(LabelCreator.Format.HTML);
            
 		   return re;
 	}

@@ -8,6 +8,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.UUID;
 import org.jtwig.JtwigModel;
@@ -23,10 +25,11 @@ import dina.LabelCreator.Options.Options;
  *
  */
 public class LabelCreator {
-	
+
+	public enum Format {PDF, HTML};
+
 	protected boolean debug;
 	protected String templateFile;
-	protected String outputFile;
 	protected String tmpDir, tmpPath;
 	protected String sizeUnit;
 	protected PageSizeUnits pageUnit;
@@ -53,7 +56,6 @@ public class LabelCreator {
 		options = op;
 		debug = op.debug;
 		templateFile = op.templateFile;
-		outputFile = op.outputFile;
 		tmpDir = op.tmpDir;
 		tmpPath = op.tmpPath;
 		baseURL = op.baseURL;
@@ -68,8 +70,8 @@ public class LabelCreator {
 		{	
 			//session based output file
 			sess_uuid = UUID.randomUUID().toString();
-			outputFile = outputFile.replaceFirst("\\.", "__"+sess_uuid+".");
-			op.outputFile = outputFile;
+			//outputFile = outputFile.replaceFirst("\\.", "__"+sess_uuid+".");
+			//op.outputFile = outputFile;
 			op.sessionIsSet = true;
 		}
 		
@@ -79,17 +81,16 @@ public class LabelCreator {
 		op.cleanUp();
 	}
 
-	public void createPDF()
-	{
-		    String template = new String();
-            
-            OutputStream os = null;
+	public Path createPDF() throws IOException {
+		    String template = "";
+				Path outputPath = Files.createTempFile("label", ".pdf");
+            OutputStream os;
               try {
-               os = new FileOutputStream(outputFile);
+               os = Files.newOutputStream(outputPath.toFile().toPath());
        
                try {
                      PdfRendererBuilder builder = new PdfRendererBuilder();
-                     template = parseTwigTemplate("PDF");
+                     template = parseTwigTemplate(Format.PDF);
                      
                      builder.withHtmlContent(template, "/");
                      
@@ -112,26 +113,23 @@ public class LabelCreator {
                      e.printStackTrace();
                      // LOG exception.
               }
+		return outputPath;
 	}
-	
-	public String parseTwigTemplate() throws MalformedURLException, IOException{
-		return parseTwigTemplate(null);
-	}
-	
-	public String parseTwigTemplate(String format) throws MalformedURLException, IOException{
+
+	public String parseTwigTemplate(Format format) throws MalformedURLException, IOException{
 		
-		String twig = null;
+		String twig;
 	
 		ArrayList<Object> data = Helper.jsonStringToArray( jsonData );
 		
 		java.util.ResourceBundle.clearCache();
 
-		twigHelper twigConf = new twigHelper(options);
+		twigHelper twigConf = new twigHelper(options, format);
 		
 		JtwigTemplate template = JtwigTemplate.fileTemplate(new File(templateFile).getAbsolutePath(), twigConf.configuration);
 		JtwigModel model = JtwigModel.newModel().with("dataArray", data);
 		
-		model.with("format", format);
+		model.with("format", format.toString());
 		model.with("baseURL", baseURL);
 		model.with("staticFiles", baseURL+"/static");
 

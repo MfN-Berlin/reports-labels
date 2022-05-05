@@ -141,6 +141,11 @@ public class Options
 		Long deleteAfter = new Long(300000); //5 minutes
 		final File folder = new File(tmpDir);
 		System.out.println(tmpDir);
+
+		if(folder.listFiles() == null) {
+			return;
+		}
+
 		for (final File fileEntry : folder.listFiles()) {
 	        if (fileEntry.isDirectory()) {
 	            // skip
