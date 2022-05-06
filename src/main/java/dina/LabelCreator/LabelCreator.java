@@ -87,10 +87,11 @@ public class LabelCreator {
             OutputStream os;
               try {
                os = Files.newOutputStream(outputPath.toFile().toPath());
-       
+								twigHelper twigHelper = new twigHelper(options, Format.PDF);
                try {
                      PdfRendererBuilder builder = new PdfRendererBuilder();
-                     template = parseTwigTemplate(Format.PDF);
+
+                     template = parseTwigTemplate(twigHelper) ;
                      
                      builder.withHtmlContent(template, "/");
                      
@@ -108,15 +109,18 @@ public class LabelCreator {
                             // swallow
                      }
                }
+							 //cleanup generated QR
+								twigHelper.cleanup();
               }
               catch (IOException e) {
                      e.printStackTrace();
                      // LOG exception.
               }
+
 		return outputPath;
 	}
 
-	public String parseTwigTemplate(Format format) throws MalformedURLException, IOException{
+	public String parseTwigTemplate(twigHelper twigHelper) throws MalformedURLException, IOException{
 		
 		String twig;
 	
@@ -124,12 +128,10 @@ public class LabelCreator {
 		
 		java.util.ResourceBundle.clearCache();
 
-		twigHelper twigConf = new twigHelper(options, format);
-		
-		JtwigTemplate template = JtwigTemplate.fileTemplate(new File(templateFile).getAbsolutePath(), twigConf.configuration);
+		JtwigTemplate template = JtwigTemplate.fileTemplate(new File(templateFile).getAbsolutePath(), twigHelper.configuration);
 		JtwigModel model = JtwigModel.newModel().with("dataArray", data);
 		
-		model.with("format", format.toString());
+		model.with("format", twigHelper.getFormat().toString());
 		model.with("baseURL", baseURL);
 		model.with("staticFiles", baseURL+"/static");
 

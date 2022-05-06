@@ -48,6 +48,10 @@ public class CreatePDF {
      		   System.out.println("Reading PDF: " + pdfPath);
      	   
      	   byte[] bytes = Files.readAllBytes(pdfPath);
+
+					//since we have the content we can discard the file
+					pdfPath.toFile().delete();
+
            HttpServletResponse raw = res.raw();
 
             raw.getOutputStream().write(bytes);

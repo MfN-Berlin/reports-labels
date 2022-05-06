@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import dina.LabelCreator.Helper.twigHelper;
 import dina.LabelCreator.LabelCreator;
 import dina.LabelCreator.Options.Options;
 import spark.Request;
@@ -33,7 +34,8 @@ public class CreateHTML {
 		   //labels.baseURL = "http://"+req.host()+req.pathInfo();
 		   //String re = labels.parseTemplate();
 
-           String re = labels.parseTwigTemplate(LabelCreator.Format.HTML);
+		   twigHelper twigHelper = new twigHelper(op, LabelCreator.Format.HTML);
+       String re = labels.parseTwigTemplate(twigHelper);
            
 		   return re;
 	}

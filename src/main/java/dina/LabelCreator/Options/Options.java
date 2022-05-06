@@ -2,6 +2,8 @@ package dina.LabelCreator.Options;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,10 +33,17 @@ public class Options
 	public int codeWidth;
 	public int codeHeight;
 	public String templateDir			= "templates";
-	public boolean sessionIsSet         = false;;
+	public boolean sessionIsSet         = false;
+
+	private final Path tempFolder;
 	
 	public Options() {
 		setDefaultOptions();
+		try {
+			tempFolder = Files.createTempDirectory("labels");
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 	
 	private void setDefaultOptions() {
@@ -134,7 +143,11 @@ public class Options
 		}
 		
 	}
-	
+
+	public Path getTempFolder() {
+		return tempFolder;
+	}
+
 	public void cleanUp() {
 	
 		Long now = System.currentTimeMillis();

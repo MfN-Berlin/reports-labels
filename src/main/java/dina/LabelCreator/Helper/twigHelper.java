@@ -6,11 +6,12 @@ import org.jtwig.environment.EnvironmentConfigurationBuilder;
 import org.jtwig.functions.FunctionRequest;
 import org.jtwig.functions.SimpleJtwigFunction;
 
-import java.io.IOException;
-import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import dina.BarCoder.BarCoder;
 import dina.LabelCreator.Options.Options;
@@ -18,17 +19,29 @@ import net.sf.json.JSONObject;
 import org.jtwig.value.convert.string.StringConverter;
 
 public class twigHelper {
-	
+
 	public Options op;
   private final LabelCreator.Format format;
+  private final Queue<Path> filesCreated = new ConcurrentLinkedQueue<Path>();
 	
 	public twigHelper(Options options, LabelCreator.Format format)
 	{
 		this.op = options;
     this.format = format;
 	}
-	
-	
+
+  public LabelCreator.Format getFormat() {
+    return format;
+  }
+
+  /**
+   * Delete created temporary file(s)
+   */
+	public void cleanup() {
+    while(!filesCreated.isEmpty()){
+      filesCreated.poll().toFile().delete();
+    }
+  }
 	
 	// Define your Twig functions here
 	
@@ -261,12 +274,8 @@ public class twigHelper {
           String para = null;
           StringConverter stringConverter = request.getEnvironment().getValueEnvironment().getStringConverter();
 
-          String outputImagePath;
-          try {
-            outputImagePath = LabelCreator.Format.PDF.equals(format) ? Files.createTempDirectory("twig").toString(): op.tmpDir;
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
+          String outputImagePath = LabelCreator.Format.PDF.equals(format) ? op.getTempFolder().toString(): op.tmpDir;
+
 
         JSONObject paraJSON = new JSONObject();
            if (request.getNumberOfArguments() == 4 /* Define number of arguments */ ) {
@@ -288,21 +297,23 @@ public class twigHelper {
 
                 	// Define the action here
                    String data = stringConverter.convert(request.get(0));
-                   String filename = stringConverter.convert(request.get(1));
+                   //filename is now ignored, a generated uuid is used instead.
                    String codeFormat = stringConverter.convert(request.get(2));
                    String qrFilename = "";
                    if(codeFormat.equalsIgnoreCase("QR-Code") || codeFormat.equalsIgnoreCase("QR"))
-                     qrFilename = BarCoder.createCode(new String[] { data, filename}, outputImagePath, BarCoder.codeFormats.QR_CODE, paraJSON);
+                     qrFilename = BarCoder.createCode(new String[] { data }, outputImagePath, BarCoder.codeFormats.QR_CODE, paraJSON);
                    if(codeFormat.equalsIgnoreCase("Barcode"))
-                     qrFilename = BarCoder.createCode(new String[] { data, filename}, outputImagePath, BarCoder.codeFormats.CODE_128,  paraJSON);
+                     qrFilename = BarCoder.createCode(new String[] { data }, outputImagePath, BarCoder.codeFormats.CODE_128,  paraJSON);
                    if(codeFormat.equalsIgnoreCase("DataMatrix"))
-                     qrFilename = BarCoder.createCode(new String[] { data, filename}, outputImagePath, BarCoder.codeFormats.DATA_MATRIX, paraJSON);
+                     qrFilename = BarCoder.createCode(new String[] { data }, outputImagePath, BarCoder.codeFormats.DATA_MATRIX, paraJSON);
                    
                    if(qrFilename != null && !qrFilename.isEmpty()) {
                      switch(format) {
                        case PDF:
-                         // for PDF we return the URI on disk (file: protocol) instead of http url
-                         response = Paths.get(outputImagePath, qrFilename).toUri().toString();
+                         // for PDF we return the URI on disk (file:/// protocol) instead of http url
+                         Path createdFile = Paths.get(outputImagePath, qrFilename);
+                         filesCreated.add(createdFile);
+                         response = createdFile.toUri().toString();
                          break;
                        case HTML:
                          response = op.baseURL + "/" + op.tmpPath + "?f=" + qrFilename;
