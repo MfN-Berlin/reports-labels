@@ -229,7 +229,7 @@ public class BarCoder {
 				hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H);
 		}
 		
-		File imgFile = new File(outputImagePath + "/" + data[1] + "__" + UUID.randomUUID().toString() + ".png");
+		File imgFile = new File(outputImagePath + "/" + UUID.randomUUID() + ".png");
 		try {
 			if(!imgFile.createNewFile())
 				return null;

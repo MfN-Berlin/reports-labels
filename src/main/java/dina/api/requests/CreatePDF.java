@@ -2,6 +2,7 @@ package dina.api.requests;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,12 +42,16 @@ public class CreatePDF {
 
 		  labelCreator.baseURL = op.baseURL;
 		   //labels.baseURL = "http://"+req.host()+req.pathInfo();
-		  labelCreator.createPDF();
+		  Path pdfPath = labelCreator.createPDF();
      	   
      	   if(op.debug)
-     		   System.out.println("Reading PDF: "+Paths.get(op.outputFile));
+     		   System.out.println("Reading PDF: " + pdfPath);
      	   
-     	   byte[] bytes = Files.readAllBytes(Paths.get(op.outputFile));         
+     	   byte[] bytes = Files.readAllBytes(pdfPath);
+
+					//since we have the content we can discard the file
+					pdfPath.toFile().delete();
+
            HttpServletResponse raw = res.raw();
 
             raw.getOutputStream().write(bytes);
